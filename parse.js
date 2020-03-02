@@ -1,15 +1,15 @@
 const {
   UnexpectedCharacter,
-  UnmatchedParentheses
-} = require('./errors')
+  UnmatchedParentheses,
+} = require("./errors");
 const {
   Module,
   AssertReturn,
-} = require('./types')
+} = require("./types");
 
 module.exports = {
-  parse_block
-}
+  parse_block,
+};
 
 function parse_block(dataStr){
   return new Promise(resolve => {
@@ -20,113 +20,110 @@ function parse_block(dataStr){
     let isComment = false;
     let hasSemicolon = false;
     dataStr.forEach(char => {
-      if(isComment && char != '\n'){
+      if(isComment && char != "\n"){
         return;
       }
-      if(char == '"' && lastChar != '\\'){
-        if(stack.top() == '"'){
+      if(char == "\"" && lastChar != "\\"){
+        if(stack.top() == "\""){
           stack.pop();
         }else{
           stack.push(char);
         }
         content += char;
-      }else if(stack.top() == '"'){
+      }else if(stack.top() == "\""){
         content += char;
       }else{
         switch(char){
-          case ';':
-            if(lastChar == ';'){
-              isComment = true;
-            }else if(hasSemicolon == false){
-              hasSemicolon = true
-            }else{
-              throw new UnexpectedCharacter(';');
-            }
-            break;
-          case '\n':
-            isComment = false;
-            hasSemicolon = false;
-            break;
-          case '(':
-            stack.push(char)
-            content = content.trim()
+        case ";":
+          if(lastChar == ";"){
+            isComment = true;
+          }else if(hasSemicolon == false){
+            hasSemicolon = true;
+          }else{
+            throw new UnexpectedCharacter(";");
+          }
+          break;
+        case "\n":
+          isComment = false;
+          hasSemicolon = false;
+          break;
+        case "(":
+          stack.push(char);
+          content = content.trim();
+          if(content != ""){
+            blocks.push(content);
+            content = "";
+          }
+          let newBlock = [];
+          newBlock.parent = blocks;
+          blocks.push(newBlock);
+          blocks = newBlock;
+          break;
+        case ")":
+          if(stack.top() == "("){
+            stack.pop();
+            content = content.trim();
             if(content != ""){
               blocks.push(content);
               content = "";
             }
-            let newBlock = []
-            newBlock.parent = blocks;
-            blocks.push(newBlock);
-            blocks = newBlock;
-            break;
-          case ')':
-            if(stack.top() == '('){
-              stack.pop();
-              content = content.trim()
-              if(content != ""){
-                blocks.push(content);
-                content = "";
-              }
-              let parent = blocks.parent;
-              delete blocks.parent;
-              blocks = parent;
-            }else{
-              throw new UnmatchedParentheses();
-            }
-            break;
-          default:
-            content += char;
+            let parent = blocks.parent;
+            delete blocks.parent;
+            blocks = parent;
+          }else{
+            throw new UnmatchedParentheses();
+          }
+          break;
+        default:
+          content += char;
         }
       }
       lastChar = char;
     });
     resolve(blocks);
   })
-  .then(blocks => {
-    let result = []
-    blocks.forEach(block => {
-      if(block.length > 0){
-        switch(block[0].split(/\s+/)[0]){
+    .then(blocks => {
+      let result = [];
+      blocks.forEach(block => {
+        if(block.length > 0){
+          switch(block[0].split(/\s+/)[0]){
           case "module":
-            result.push(new Module(block))
-          break;
+            result.push(new Module(block));
+            break;
           case "register":
             // TODO:
-          break;
+            break;
           case "invoke":
             // TODO:
-          break;
+            break;
           case "get":
             // TODO:
-          break;
+            break;
           case "assert_return":
-            result[result.length - 1].assertions.push(new AssertReturn(block))
-          break;
+            result[result.length - 1].assertions.push(new AssertReturn(block));
+            break;
           case "assert_trap":
             // TODO:
-          break;
+            break;
           case "assert_exhaustion":
             // TODO:
-          break;
+            break;
           case "assert_malformed":
             // TODO:
-          break;
+            break;
           case "assert_invalid":
             // TODO:
-          break;
+            break;
           case "assert_unlinkable":
             // TODO:
-          break;
-          case "assert_trap":
-            // TODO:
-          break;
+            break;
           default:
             throw new SyntaxError("Unknown test connand");
+          }
         }
-      }
-    })
-    return result
-  })
+      });
+      return result;
+    });
 }
 
 class Stack extends Array{

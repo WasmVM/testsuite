@@ -1,4 +1,4 @@
-class Module {
+class Module{
   constructor(block){
     this.assertions = [];
     this.block = block;
@@ -6,18 +6,22 @@ class Module {
 }
 module.exports.Module = Module;
 
-class Assertion {
+class Assertion{
   expand(){
-    throw new TypeError("Expand should be implemented in assertion")
+    throw new TypeError("Expand should be implemented in assertion");
   }
 }
 
 class AssertReturn extends Assertion{
   constructor(block){
-    super()
+    super();
+    block.pop();
+    let act = block[0].trim().split(/\s+/)[0];
+    this.action = null;
   }
+
   expand(){
-    console.log("AssertReturn")
+    console.log("AssertReturn");
   }
 }
 module.exports.AssertReturn = AssertReturn;

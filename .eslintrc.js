@@ -1,0 +1,73 @@
+module.exports = {
+  "env": {
+    "commonjs": true,
+    "es6": false,
+    "node": true
+  },
+  "globals": {
+    "Atomics": "readonly",
+    "SharedArrayBuffer": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2018
+  },
+  "rules": {
+    "no-compare-neg-zero":["error"],
+    "no-debugger":["warn"],
+    "no-duplicate-case":["error"],
+    "no-empty":["error"],
+    "no-extra-boolean-cast":["error"],
+    "no-extra-semi":["error"],
+    "no-invalid-regexp":["error"],
+    "no-irregular-whitespace":["error"],
+    "no-template-curly-in-string":["warn"],
+    "no-unexpected-multiline":["error"],
+    "no-unreachable":["error"],
+    "use-isnan":["error"],
+    "no-floating-decimal":["warn"],
+    "no-self-assign":["error"],
+    "no-self-compare":["error"],
+    "no-useless-catch":["error"],
+    "valid-typeof":["error"],
+    "init-declarations":["error", "always"],
+    "array-bracket-newline":["error", "consistent"],
+    "array-bracket-spacing":["error", "never"],
+    "array-element-newline":["error", "consistent"],
+    "block-spacing":["error", "never"],
+    "brace-style":["error", "1tbs", { "allowSingleLine": true }],
+    "capitalized-comments": ["error", "always"],
+    "comma-dangle":["error", "always-multiline"],
+    "comma-spacing":["error", { "before": false, "after": true }],
+    "comma-style":["error", "last"],
+    "func-call-spacing":["error", "never"],
+    "function-call-argument-newline":["error", "consistent"],
+    "function-paren-newline":["error", "consistent"],
+    "implicit-arrow-linebreak":["error", "beside"],
+    "indent":["error", 2],
+    "key-spacing":["error", {"beforeColon":false, "afterColon": true, "mode": "strict", "align": "colon"}],
+    "linebreak-style": ["error","unix"],
+    "lines-between-class-members": ["error", "always"],
+    "multiline-comment-style": ["error", "starred-block"],
+    "no-multi-assign": ["error"],
+    "no-multiple-empty-lines": ["error", {"max": 2}],
+    "no-trailing-spaces": ["error"],
+    "no-whitespace-before-property": ["error"],
+    "object-curly-newline":["error", {"consistent": true}],
+    "object-curly-spacing": ["error", "never"],
+    "one-var-declaration-per-line": ["error"],
+    "operator-linebreak": ["error", "after"],
+    "operator-assignment": ["error", "always"],
+    "semi-spacing": ["error", {"before": false, "after": true}],
+    "quotes": ["error","double"],
+    "semi": ["error","always", {"omitLastInOneLineBlock": true}],
+    "semi-style": ["error", "last"],
+    "space-before-function-paren": ["error", {
+      "anonymous": "never",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "space-before-blocks": ["error", { "functions": "never", "keywords": "never", "classes": "never" }],
+    "space-in-parens": ["error", "never"],
+    "switch-colon-spacing": ["error", {"after": true, "before": false}]
+  }
+};

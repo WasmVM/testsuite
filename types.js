@@ -41,6 +41,21 @@ class AssertTrap extends Assertion{
 }
 module.exports.AssertTrap = AssertTrap;
 
+class AssertMelformed extends Assertion{
+  constructor(block){
+    super();
+    block.shift();
+    this.module = new Module(block.shift());
+    this.failure = block.shift();
+    this.failure = this.failure.substring(1, this.failure.length - 1);
+  }
+
+  expand(){
+    console.log("AssertMelformed"); // TODO:
+  }
+}
+module.exports.AssertMelformed = AssertMelformed;
+
 class Invoke{
   constructor(block){
     block[0] = block[0].trim();

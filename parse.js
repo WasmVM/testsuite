@@ -5,6 +5,7 @@ const {
 const {
   Module,
   AssertReturn,
+  AssertTrap,
 } = require("./types");
 
 module.exports = {
@@ -103,7 +104,7 @@ function parse_block(dataStr){
             result[result.length - 1].assertions.push(new AssertReturn(block));
             break;
           case "assert_trap":
-            // TODO:
+            result[result.length - 1].assertions.push(new AssertTrap(block));
             break;
           case "assert_exhaustion":
             // TODO:

@@ -8,11 +8,31 @@ const Path = require("path");
 
 const {parse_block} = require("./parse");
 
+let generatedDir = Path.resolve(
+  __dirname,
+  "generated",
+  Path.basename(process.argv[2]),
+);
+generatedDir = generatedDir.substring(0, generatedDir.length - Path.extname(process.argv[2]).length);
+
+fs.access(Path.resolve(__dirname, "generated"))
+  .catch(() => fs.mkdir(Path.resolve(__dirname, "generated")))
+  .then(() => fs.access(generatedDir))
+  .catch(() => fs.mkdir(generatedDir));
+
 // Extract models from wast file
 fs.readFile(Path.resolve(process.argv[2]))
   .then(data => [...data.toString()])
   .then(parse_block)
-  .then(blocks => fs.writeFile("output.json", JSON.stringify(blocks, null, "  ")))
+  .then(blocks => Promise.all(blocks.map((block, index) => fs.writeFile(
+    Path.resolve(generatedDir, `module_${index}.wat`),
+    block.expand(),
+  ).then(() => Promise.all(block.assertions.map(assertion => assertion.expand(
+    `module_${index}`,
+  )))).then(testCases => Promise.all(testCases.map((testCase, testId) => fs.writeFile(
+    Path.join(generatedDir, `test_${index}_${testId}_${testCase.expect}.wat`),
+    testCase.content,
+  )))))))
   .catch(err => {
   // TODO: Correct stack to right position in wast
     console.log(err);

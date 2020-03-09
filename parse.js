@@ -22,7 +22,7 @@ function parse_block(dataStr){
     let isComment = false;
     let hasSemicolon = false;
     dataStr.forEach(char => {
-      if(isComment && char != "\n"){
+      if(isComment && char != "\n" && char != ")"){
         return;
       }
       if(char == "\"" && lastChar != "\\"){
@@ -37,7 +37,7 @@ function parse_block(dataStr){
       }else{
         switch(char){
         case ";":
-          if(lastChar == ";"){
+          if(lastChar == ";" || lastChar == "("){
             isComment = true;
           }else if(hasSemicolon == false){
             hasSemicolon = true;
@@ -62,7 +62,9 @@ function parse_block(dataStr){
           blocks = newBlock;
           break;
         case ")":
-          if(stack.top() == "("){
+          if(isComment && lastChar == ";"){
+            isComment = false;
+          }else if(stack.top() == "("){
             stack.pop();
             content = content.trim();
             if(content != ""){

@@ -18,11 +18,14 @@ class Module{
   }
 
   expand(){
-    let result = "(module";
+    let result = "(module ";
     if(this.block[0].match(/module$/) !== null){
       for(let i = 1; i < this.block.length; ++i){
         result += this._extendBlock(this.block[i], 1);
       }
+    }else if(this.block[0].match(/module quote/) !== null){
+      let quotedModule = this.block[0].substring(12).trim().match(/"(\\"|\s|[^"])*"/g);
+      result += quotedModule.reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "");
     }
     result += "\n)";
     return result;
@@ -54,7 +57,7 @@ class AssertReturn extends Assertion{
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
-        "    " + invokeExpand.content.replace(/\n/g, "\n    ") +
+        "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    " +
         this.results.map(result => result[0] +
           `\n    ${result[0].substring(0, 3)}.ne\n` +
           "    if\n" +
@@ -84,13 +87,13 @@ class AssertTrap extends Assertion{
       let invokeExpand = this.action.expand(moduleName);
       return {
         expect : "trap",
-        content: `;; (assert_trap (invoke "${this.action.func}") "${this.action.failure}"\n` +
+        content: `;; (assert_trap (invoke "${this.action.func}") "${this.failure}"\n` +
         "(module \n" +
         "  " + invokeExpand.prologue + "\n" +
-        `  (memory (data "${this.action.failure}"))\n  (start $main)\n` +
+        "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
         "    " + invokeExpand.content.replace(/\n/g, "\n    ") +
-        "  )\n)\n",
+        "\n  )\n)\n",
       };
     }else if(this.action instanceof Get){
       return this.action.expand(moduleName);
@@ -110,7 +113,10 @@ class AssertMelformed extends Assertion{
   }
 
   expand(){
-    console.log("AssertMelformed"); // TODO:
+    return {
+      expect : "melformed",
+      content: this.module.expand(),
+    };
   }
 }
 module.exports.AssertMelformed = AssertMelformed;
@@ -141,7 +147,7 @@ class Invoke{
         this.params.map(param => "("+ param[0] + ") ")
       })\n` +
         this.params.map(param => `${param[0]}\n` + // Set parameter
-        "call $test_func\n"),
+        "call $test_func"),
     };
   }
 }

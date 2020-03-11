@@ -34,6 +34,5 @@ fs.readFile(Path.resolve(process.argv[2]))
     testCase.content,
   )))))))
   .catch(err => {
-  // TODO: Correct stack to right position in wast
     console.log(err);
   });

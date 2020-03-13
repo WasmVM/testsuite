@@ -1,6 +1,6 @@
 [submodule "official"]
 	path = official
-	url = https://github.com/WebAssembly/testsuite.git
+	url = https://github.com/WasmVM/testsuite-official.git
 [submodule "wabt"]
 	path = wabt
 	url = https://github.com/WebAssembly/wabt.git

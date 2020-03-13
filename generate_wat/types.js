@@ -52,17 +52,17 @@ class AssertReturn extends Assertion{
       let invokeExpand = this.action.expand(moduleName);
       return {
         expect : "valid",
-        content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.map(result => `(${result})`)})\n` +
+        content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.reduce((str, result) => str + ` (${result})`, "")})\n` +
         "(module \n" +
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
         "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    " +
-        this.results.map(result => result[0] +
+        this.results.reduce((str, result) => str + result[0] +
           `\n    ${result[0].substring(0, 3)}.ne\n` +
           "    if\n" +
           "      unreachable\n" +
-          "    end\n") +
+          "    end\n", "") +
         "  )\n)\n",
       };
     }else if(this.action instanceof Get){
@@ -121,6 +121,24 @@ class AssertMelformed extends Assertion{
 }
 module.exports.AssertMelformed = AssertMelformed;
 
+class AssertInvalid extends Assertion{
+  constructor(block){
+    super();
+    block.shift();
+    this.module = new Module(block.shift());
+    this.failure = block.shift();
+    this.failure = this.failure.substring(1, this.failure.length - 1);
+  }
+
+  expand(){
+    return {
+      expect : "invalid",
+      content: this.module.expand(),
+    };
+  }
+}
+module.exports.AssertInvalid = AssertInvalid;
+
 class Invoke{
   constructor(block, results){
     block[0] = block[0].trim();
@@ -139,15 +157,15 @@ class Invoke{
     return {
       type    : "invoke",
       prologue: `(import "${moduleName}" "${this.func}" (func $test_func ${
-        (this.params.length > 0) ? "(param " + this.params.map(param => param[0].substring(0, 3)) + ")" : ""
+        (this.params.length > 0) ? "(param" + this.params.reduce((str, param) => str + " " + param[0].substring(0, 3), "") + ")" : ""
       } ${
         (this.results && this.results.length > 0) ? "(result " + this.results.map(result => result[0].substring(0, 3)) + ")" : ""
       }))`,
       content: `;; (invoke "${this.func}" ${
-        this.params.map(param => "("+ param[0] + ") ")
+        this.params.reduce((str, param) => str + " ("+ param[0] + ") ", "")
       })\n` +
-        this.params.map(param => `${param[0]}\n` + // Set parameter
-        "call $test_func"),
+        this.params.reduce((str, param) => str + `${param[0]}\n`, "") + // Set parameter
+        "call $test_func\n",
     };
   }
 }

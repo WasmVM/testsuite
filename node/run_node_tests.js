@@ -15,7 +15,7 @@ fs.access(wasmDir)
       .then(wats => wats.filter(path => path.endsWith(".wat") && !path.endsWith("_melformed.wat")).map(path => Path.join(topic, path))) // Filter .wat files
       .then(wats => Promise.all(wats.map(watFile => new Promise((resolve, reject) => {
         // Convert wat to wasm
-        ChildProcess.spawn(Path.resolve("install-wabt", "bin", "wat2wasm"), [Path.resolve(process.argv[2], watFile)], {cwd: Path.join(wasmDir, topic)})
+        ChildProcess.spawn(Path.resolve("install-wabt", "bin", "wat2wasm"), ["--no-check", Path.resolve(process.argv[2], watFile)], {cwd: Path.join(wasmDir, topic)})
           .on("error", err => {
             console.error(`[ERROR] Cannot convert ${watFile} to wasm binary`);
             reject(err);
@@ -48,8 +48,14 @@ fs.access(wasmDir)
         console.log(`  module ${module}`);
         Object.keys(reports[topic][module]).sort((a, b) => a - b).forEach(testId => {
           console.log(`  * Case ${testId} --- ${(reports[topic][module][testId].passed) ? "PASS" : "FAILED"}`);
+          if(reports[topic][module][testId].passed){
+            passed += 1;
+          }else{
+            failed += 1;
+          }
         });
       });
     });
+    console.log(`Total finished cases: ${passed + failed}, ${passed} passed, ${failed} failed`);
     process.exit(failed);
   });

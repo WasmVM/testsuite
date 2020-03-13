@@ -7,6 +7,7 @@ const {
   AssertReturn,
   AssertTrap,
   AssertMelformed,
+  AssertInvalid,
 } = require("./types");
 
 module.exports = {
@@ -116,7 +117,7 @@ function parse_block(dataStr){
             result[result.length - 1].assertions.push(new AssertMelformed(block));
             break;
           case "assert_invalid":
-            // TODO:
+            result[result.length - 1].assertions.push(new AssertInvalid(block));
             break;
           case "assert_unlinkable":
             // TODO:

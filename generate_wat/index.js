@@ -23,15 +23,18 @@ fs.access(Path.resolve("build"))
 fs.readFile(Path.resolve(process.argv[2]))
   .then(data => [...data.toString()])
   .then(parse_block)
-  .then(blocks => Promise.all(blocks.map((block, index) => fs.writeFile(
-    Path.resolve(generatedDir, `module_${index}.wat`),
-    block.expand(),
-  ).then(() => Promise.all(block.assertions.map(assertion => assertion.expand(
-    `module_${index}`,
-  )))).then(testCases => Promise.all(testCases.map((testCase, testId) => fs.writeFile(
-    Path.join(generatedDir, `test_${index}_${testId}_${testCase.expect}.wat`),
-    testCase.content,
-  )))))))
+  .then(blocks => Promise.all(blocks.map((block, index) => {
+    let module = block.expand();
+    return fs.writeFile(
+      Path.resolve(generatedDir, `module_${index}.${(module instanceof Buffer) ? "wasm" : "wat"}`),
+      module,
+    ).then(() => Promise.all(block.assertions.map(assertion => assertion.expand(
+      `module_${index}`,
+    )))).then(testCases => Promise.all(testCases.map((testCase, testId) => fs.writeFile(
+      Path.join(generatedDir, `test_${index}_${testId}_${testCase.expect}.${(testCase.content instanceof Buffer) ? "wasm" : "wat"}`),
+      testCase.content,
+    ))));
+  })))
   .catch(err => {
     console.log(err);
   });

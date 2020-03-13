@@ -21,9 +21,11 @@ function parse_block(dataStr){
     let content = "";
     let lastChar = null;
     let isComment = false;
+    let isBlockComment = false;
     let hasSemicolon = false;
     dataStr.forEach(char => {
-      if(isComment && char != "\n" && char != ")"){
+      if((isComment && char != "\n") || (isBlockComment && char != ")")){
+        lastChar = char;
         return;
       }
       if(char == "\"" && lastChar != "\\"){
@@ -38,8 +40,10 @@ function parse_block(dataStr){
       }else{
         switch(char){
         case ";":
-          if(lastChar == ";" || lastChar == "("){
+          if(lastChar == ";"){
             isComment = true;
+          }else if(lastChar == "("){
+            isBlockComment = true;
           }else if(hasSemicolon == false){
             hasSemicolon = true;
           }else{
@@ -47,8 +51,10 @@ function parse_block(dataStr){
           }
           break;
         case "\n":
-          isComment = false;
-          hasSemicolon = false;
+          if(isComment){
+            isComment = false;
+            hasSemicolon = false;
+          }
           break;
         case "(":
           stack.push(char);
@@ -63,8 +69,11 @@ function parse_block(dataStr){
           blocks = newBlock;
           break;
         case ")":
-          if(isComment && lastChar == ";"){
-            isComment = false;
+          if(isBlockComment){
+            if(lastChar == ";"){
+              stack.pop();
+              isBlockComment = false;
+            }
           }else if(stack.top() == "("){
             stack.pop();
             content = content.trim();

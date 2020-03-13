@@ -2,6 +2,7 @@ class Module{
   constructor(block){
     this.assertions = [];
     this.block = block;
+    this.isBinary = false;
   }
 
   _extendBlock(block, indent){
@@ -18,16 +19,36 @@ class Module{
   }
 
   expand(){
-    let result = "(module ";
-    if(this.block[0].match(/module$/) !== null){
-      for(let i = 1; i < this.block.length; ++i){
-        result += this._extendBlock(this.block[i], 1);
+    let result = null;
+    if(this.block[0].match(/module binary/) !== null){
+      this.isBinary = true;
+      let binaryModule = this.block[0].substring(13).trim()
+        .match(/"(\\"|\s|[^"])*"/g)
+        .reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "")
+        .match(/(\\\\|\\\d\d|[^\\])/g);
+      let buffer = Buffer.alloc(binaryModule.length);
+      binaryModule.forEach((byte, index) => {
+        if(byte == "\\\\"){
+          buffer.write("\\", index);
+        }else if(byte.startsWith("\\")){
+          buffer.writeUInt8(parseInt(byte.substring(1), 16), index);
+        }else{
+          buffer.write(byte, index);
+        }
+      });
+      result = buffer;
+    }else{
+      result = "(module ";
+      if(this.block[0].match(/module$/) !== null){
+        for(let i = 1; i < this.block.length; ++i){
+          result += this._extendBlock(this.block[i], 1);
+        }
+      }else if(this.block[0].match(/module quote/) !== null){
+        let quotedModule = this.block[0].substring(12).trim().match(/"(\\"|\s|[^"])*"/g);
+        result += quotedModule.reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "");
       }
-    }else if(this.block[0].match(/module quote/) !== null){
-      let quotedModule = this.block[0].substring(12).trim().match(/"(\\"|\s|[^"])*"/g);
-      result += quotedModule.reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "");
+      result += "\n)";
     }
-    result += "\n)";
     return result;
   }
 }

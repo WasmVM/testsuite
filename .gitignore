@@ -4,3 +4,4 @@ node_modules/
 node-test/
 build*/
 install*/
+package-lock.json

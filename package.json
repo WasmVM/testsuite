@@ -8,8 +8,7 @@
     "url": "git+https://github.com/WasmVM/testsuite.git"
   },
   "scripts": {
-    "start": "node generate_wat/index.js",
-    "test": "node node/run_node_tests.js"
+    "start": "node generate_wat/index.js"
   },
   "author": "LuisHsu",
   "license": "BSD-3-Clause",

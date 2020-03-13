@@ -9,14 +9,13 @@ const Path = require("path");
 const {parse_block} = require("./parse");
 
 let generatedDir = Path.resolve(
-  __dirname,
   "build",
   Path.basename(process.argv[2]),
 );
 generatedDir = generatedDir.substring(0, generatedDir.length - Path.extname(process.argv[2]).length);
 
-fs.access(Path.resolve(__dirname, "build"))
-  .catch(() => fs.mkdir(Path.resolve(__dirname, "build")))
+fs.access(Path.resolve("build"))
+  .catch(() => fs.mkdir(Path.resolve("build")))
   .then(() => fs.access(generatedDir))
   .catch(() => fs.mkdir(generatedDir));
 

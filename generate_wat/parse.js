@@ -6,8 +6,9 @@ const {
   Module,
   AssertReturn,
   AssertTrap,
-  AssertMelformed,
+  AssertMalformed,
   AssertInvalid,
+  AssertExhaustion,
 } = require("./types");
 
 module.exports = {
@@ -105,13 +106,13 @@ function parse_block(dataStr){
             result.push(new Module(block));
             break;
           case "register":
-            // TODO:
+            throw new ReferenceError("register not implemented"); // TODO:
             break;
           case "invoke":
-            // TODO:
+            throw new ReferenceError("invoke not implemented"); // TODO:
             break;
           case "get":
-            // TODO:
+            throw new ReferenceError("get not implemented"); // TODO:
             break;
           case "assert_return":
             result[result.length - 1].assertions.push(new AssertReturn(block));
@@ -120,16 +121,16 @@ function parse_block(dataStr){
             result[result.length - 1].assertions.push(new AssertTrap(block));
             break;
           case "assert_exhaustion":
-            // TODO:
+            result[result.length - 1].assertions.push(new AssertExhaustion(block));
             break;
           case "assert_malformed":
-            result[result.length - 1].assertions.push(new AssertMelformed(block));
+            result.push(new AssertMalformed(block));
             break;
           case "assert_invalid":
-            result[result.length - 1].assertions.push(new AssertInvalid(block));
+            result.push(new AssertInvalid(block));
             break;
           case "assert_unlinkable":
-            // TODO:
+            throw new ReferenceError("assert_unlinkable not implemented"); // TODO:
             break;
           default:
             throw new SyntaxError("Unknown test connand");

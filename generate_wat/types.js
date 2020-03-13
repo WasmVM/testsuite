@@ -76,7 +76,7 @@ class AssertReturn extends Assertion{
     if(this.action instanceof Invoke){
       let invokeExpand = this.action.expand(moduleName);
       return {
-        expect : "valid",
+        expect : "return",
         content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.reduce((str, result) => str + ` (${result})`, "")})\n` +
         "(module \n" +
         "  " + invokeExpand.prologue + "\n" +
@@ -123,12 +123,12 @@ class AssertTrap extends Assertion{
     }else if(this.action instanceof Get){
       return this.action.expand(moduleName);
     }
-    throw new TypeError("Unsupported action in AssertReturn");
+    throw new TypeError("Unsupported action in AssertTrap");
   }
 }
 module.exports.AssertTrap = AssertTrap;
 
-class AssertMelformed extends Assertion{
+class AssertMalformed extends Assertion{
   constructor(block){
     super();
     block.shift();
@@ -139,12 +139,12 @@ class AssertMelformed extends Assertion{
 
   expand(){
     return {
-      expect : "melformed",
+      expect : "malformed",
       content: this.module.expand(),
     };
   }
 }
-module.exports.AssertMelformed = AssertMelformed;
+module.exports.AssertMalformed = AssertMalformed;
 
 class AssertInvalid extends Assertion{
   constructor(block){
@@ -163,6 +163,37 @@ class AssertInvalid extends Assertion{
   }
 }
 module.exports.AssertInvalid = AssertInvalid;
+
+class AssertExhaustion extends Assertion{
+  constructor(block){
+    super();
+    block.shift();
+    this.action = getAction(block.shift());
+    this.failure = block.shift();
+    this.failure = this.failure.substring(1, this.failure.length - 1);
+  }
+
+  expand(moduleName){
+    if(this.action instanceof Invoke){
+      let invokeExpand = this.action.expand(moduleName);
+      return {
+        expect : "exhaustion",
+        content: `;; (assert_exhaustion (invoke "${this.action.func}") "${this.failure}"\n` +
+        "(module \n" +
+        "  " + invokeExpand.prologue + "\n" +
+        "  (memory 1)\n  (start $main)\n" +
+        "  (func $main (export \"main\")\n" +
+        "    " + invokeExpand.content.replace(/\n/g, "\n    ") +
+        "\n  )\n)\n",
+      };
+    }else if(this.action instanceof Get){
+      return this.action.expand(moduleName);
+    }
+    throw new TypeError("Unsupported action in AssertReturn");
+  }
+}
+module.exports.AssertExhaustion = AssertExhaustion;
+
 
 class Invoke{
   constructor(block, results){
@@ -198,7 +229,7 @@ module.exports.Invoke = Invoke;
 
 class Get{
   constructor(block){
-
+    throw ReferenceError("Get block not impemented"); // TODO:
   }
 }
 

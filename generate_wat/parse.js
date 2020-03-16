@@ -21,14 +21,31 @@ function parse_block(dataStr){
     let blocks = [];
     let content = "";
     let lastChar = null;
-    let isComment = false;
-    let isBlockComment = false;
-    let hasSemicolon = false;
-    dataStr.forEach(char => {
-      if((isComment && char != "\n") || (isBlockComment && char != ")")){
-        lastChar = char;
-        return;
+    // Remove comments
+    let charArray = [];
+    let comment = null;
+    for(let i = 0; i < dataStr.length; ++i){
+      if((comment == "line") && (dataStr.charAt(i) == "\n")){
+        comment = null;
+        charArray.push("\n");
+      }else if(dataStr.charAt(i) == "(" && dataStr.charAt(i + 1) == ";"){
+        stack.push("(;");
+        comment = "block";
+      }else if(comment == "block" && dataStr.charAt(i) == ";" && dataStr.charAt(i + 1) == ")"){
+        stack.pop();
+        if(stack.top() == null){
+          comment = null;
+        }
+        i += 1;
+      }else if(comment == null && dataStr.charAt(i) == ";" && dataStr.charAt(i + 1) == ";"){
+        comment = "line";
+      }else if(comment != "block" && comment != "line"){
+        charArray.push(dataStr.charAt(i));
       }
+    }
+    stack = new Stack;
+    // Parse blocks
+    charArray.forEach(char => {
       if(char == "\"" && lastChar != "\\"){
         if(stack.top() == "\""){
           stack.pop();
@@ -40,23 +57,6 @@ function parse_block(dataStr){
         content += char;
       }else{
         switch(char){
-        case ";":
-          if(lastChar == ";"){
-            isComment = true;
-          }else if(lastChar == "("){
-            isBlockComment = true;
-          }else if(hasSemicolon == false){
-            hasSemicolon = true;
-          }else{
-            throw new UnexpectedCharacter(";");
-          }
-          break;
-        case "\n":
-          if(isComment){
-            isComment = false;
-            hasSemicolon = false;
-          }
-          break;
         case "(":
           stack.push(char);
           content = content.trim();
@@ -70,12 +70,7 @@ function parse_block(dataStr){
           blocks = newBlock;
           break;
         case ")":
-          if(isBlockComment){
-            if(lastChar == ";"){
-              stack.pop();
-              isBlockComment = false;
-            }
-          }else if(stack.top() == "("){
+          if(stack.top() == "("){
             stack.pop();
             content = content.trim();
             if(content != ""){

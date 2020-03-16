@@ -22,7 +22,7 @@ fs.access(Path.resolve("build"))
 
 // Extract models from wast file
 fs.readFile(Path.resolve(process.argv[2]))
-  .then(data => [...data.toString()])
+  .then(data => data.toString())
   .then(parse_block)
   .then(blocks => Promise.all(blocks.map((block, index) => {
     let module = block.expand();

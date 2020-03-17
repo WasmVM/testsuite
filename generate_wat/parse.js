@@ -9,6 +9,7 @@ const {
   AssertMalformed,
   AssertInvalid,
   AssertExhaustion,
+  AssertUnlinkable,
 } = require("./types");
 
 module.exports = {
@@ -125,7 +126,7 @@ function parse_block(dataStr){
             result.push(new AssertInvalid(block));
             break;
           case "assert_unlinkable":
-            throw new ReferenceError("assert_unlinkable not implemented"); // TODO:
+            result.push(new AssertUnlinkable(block));
             break;
           default:
             throw new SyntaxError("Unknown test connand");

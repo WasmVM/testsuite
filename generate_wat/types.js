@@ -198,6 +198,25 @@ class AssertExhaustion extends Assertion{
 }
 module.exports.AssertExhaustion = AssertExhaustion;
 
+class AssertUnlinkable extends Assertion{
+  constructor(block){
+    super();
+    block.shift();
+    this.module = new Module(block.shift());
+    this.failure = block.shift();
+    this.failure = this.failure.substring(1, this.failure.length - 1);
+  }
+
+  expand(){
+    let expanded = this.module.expand();
+    let header = `;; (assert_unlinkable "${this.failure}")\n`;
+    return {
+      expect : "unlinkable",
+      content: (expanded instanceof Buffer) ? Buffer.concat([Buffer.from(header), expanded]) : header + expanded,
+    };
+  }
+}
+module.exports.AssertUnlinkable = AssertUnlinkable;
 
 class Invoke{
   constructor(block, results){

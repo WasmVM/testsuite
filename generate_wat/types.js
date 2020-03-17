@@ -138,9 +138,11 @@ class AssertMalformed extends Assertion{
   }
 
   expand(){
+    let expanded = this.module.expand();
+    let header = `;; (assert_melformed "${this.failure}")\n`;
     return {
       expect : "malformed",
-      content: this.module.expand(),
+      content: (expanded instanceof Buffer) ? Buffer.concat([Buffer.from(header), expanded]) : header + expanded,
     };
   }
 }
@@ -156,9 +158,11 @@ class AssertInvalid extends Assertion{
   }
 
   expand(){
+    let expanded = this.module.expand();
+    let header = `;; (assert_invalid "${this.failure}")\n`;
     return {
       expect : "invalid",
-      content: this.module.expand(),
+      content: (expanded instanceof Buffer) ? Buffer.concat([Buffer.from(header), expanded]) : header + expanded,
     };
   }
 }

@@ -1,9 +1,9 @@
 const {
-  UnexpectedCharacter,
   UnmatchedParentheses,
 } = require("./errors");
 const {
   Module,
+  Register,
   AssertReturn,
   AssertTrap,
   AssertMalformed,
@@ -19,9 +19,6 @@ module.exports = {
 function parse_block(dataStr){
   return new Promise(resolve => {
     let stack = new Stack;
-    let blocks = [];
-    let content = "";
-    let lastChar = null;
     // Remove comments
     let charArray = [];
     let comment = null;
@@ -45,51 +42,36 @@ function parse_block(dataStr){
       }
     }
     stack = new Stack;
+
     // Parse blocks
-    charArray.forEach(char => {
-      if(char == "\"" && lastChar != "\\"){
+    let blocks = [];
+    let content = "";
+    charArray.forEach((char, index) => {
+      content += char;
+      if(char == "\"" && (index == 0 || charArray[index - 1] != "\\")){
         if(stack.top() == "\""){
           stack.pop();
         }else{
           stack.push(char);
         }
-        content += char;
-      }else if(stack.top() == "\""){
-        content += char;
-      }else{
+      }else if(stack.top() != "\""){
         switch(char){
         case "(":
           stack.push(char);
-          content = content.trim();
-          if(content != ""){
-            blocks.push(content);
-            content = "";
-          }
-          let newBlock = [];
-          newBlock.parent = blocks;
-          blocks.push(newBlock);
-          blocks = newBlock;
           break;
         case ")":
-          if(stack.top() == "("){
+          if(stack.length < 1){
+            throw new UnmatchedParentheses();
+          }else{
             stack.pop();
-            content = content.trim();
-            if(content != ""){
-              blocks.push(content);
+            if(stack.length == 0){
+              blocks.push(content.trim());
               content = "";
             }
-            let parent = blocks.parent;
-            delete blocks.parent;
-            blocks = parent;
-          }else{
-            throw new UnmatchedParentheses();
           }
           break;
-        default:
-          content += char;
         }
       }
-      lastChar = char;
     });
     resolve(blocks);
   })
@@ -97,12 +79,21 @@ function parse_block(dataStr){
       let result = [];
       blocks.forEach(block => {
         if(block.length > 0){
-          switch(block[0].split(/\s+/)[0]){
+          let blockType = block.match(/^\(\s*(\w+)\s/);
+          if(!blockType){
+            throw new SyntaxError("Unknown test connand");
+          }
+          switch(blockType[1]){
           case "module":
             result.push(new Module(block));
             break;
           case "register":
-            throw new ReferenceError("register not implemented"); // TODO:
+            let register = new Register(block);
+            if(register.module != null){
+              result.filter(res => res instanceof Module).find(mod => mod.name == register.module).register = register.name;
+            }else{
+              result[result.length - 1].register = register.name;
+            }
             break;
           case "invoke":
             throw new ReferenceError("invoke not implemented"); // TODO:
@@ -111,13 +102,28 @@ function parse_block(dataStr){
             throw new ReferenceError("get not implemented"); // TODO:
             break;
           case "assert_return":
-            result[result.length - 1].assertions.push(new AssertReturn(block));
+            let assertReturn = new AssertReturn(block);
+            if(assertReturn.action.name){
+              result.filter(res => res instanceof Module).find(mod => mod.name == assertReturn.action.name).assertions.push(assertReturn);
+            }else{
+              result[result.length - 1].assertions.push(assertReturn);
+            }
             break;
           case "assert_trap":
-            result[result.length - 1].assertions.push(new AssertTrap(block));
+            let assertTrap = (new AssertTrap(block));
+            if(assertTrap.action.name){
+              result.filter(res => res instanceof Module).find(mod => mod.name == assertTrap.action.name).assertions.push(assertTrap);
+            }else{
+              result[result.length - 1].assertions.push(assertTrap);
+            }
             break;
           case "assert_exhaustion":
-            result[result.length - 1].assertions.push(new AssertExhaustion(block));
+            let assertExhaustion = new AssertExhaustion(block);
+            if(assertExhaustion.action.name){
+              result.filter(res => res instanceof Module).find(mod => mod.name == assertExhaustion.action.name).assertions.push(assertExhaustion);
+            }else{
+              result[result.length - 1].assertions.push(assertExhaustion);
+            }
             break;
           case "assert_malformed":
             result.push(new AssertMalformed(block));

@@ -27,18 +27,18 @@ fs.readFile(Path.resolve(process.argv[2]))
   .then(blocks => Promise.all(blocks.map((block, index) => {
     let module = block.expand();
     if(block instanceof Module){
+      let moduleName = (block.register) ? block.register.name : `test_module_${index}`;
       return fs.writeFile(
-        Path.resolve(generatedDir, `module_${index}.${(module instanceof Buffer) ? "wasm" : "wat"}`),
+        Path.resolve(generatedDir, `${moduleName}.${(module instanceof Buffer) ? "wasm" : "wat"}`),
         module,
-      ).then(() => Promise.all(block.assertions.map(assertion => assertion.expand(
-        `module_${index}`,
-      )))).then(testCases => Promise.all(testCases.map((testCase, testId) => fs.writeFile(
-        Path.join(generatedDir, `test_${index}_${testId}_${testCase.expect}.${(testCase.content instanceof Buffer) ? "wasm" : "wat"}`),
-        testCase.content,
-      ))));
+      ).then(() => Promise.all(block.assertions.map(assertion => assertion.expand(moduleName))))
+        .then(testCases => Promise.all(testCases.map((testCase, testId) => fs.writeFile(
+          Path.join(generatedDir, `test_${index}_${testId}_${testCase.expect}.${(testCase.content instanceof Buffer) ? "wasm" : "wat"}`),
+          testCase.content,
+        ))));
     }else{
       return fs.writeFile(
-        Path.resolve(generatedDir, `module_${index}_${module.expect}.${(module.content instanceof Buffer) ? "wasm" : "wat"}`),
+        Path.resolve(generatedDir, `test_module_${index}_${module.expect}.${(module.content instanceof Buffer) ? "wasm" : "wat"}`),
         module.content,
       );
     }

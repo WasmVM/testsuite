@@ -3,25 +3,16 @@ class Module{
     this.assertions = [];
     this.block = block;
     this.isBinary = false;
-  }
-
-  _extendBlock(block, indent){
-    let result = `\n${"  ".repeat(indent)}(`;
-    block.forEach(elem => {
-      if(typeof(elem) === "string"){
-        result += `${elem} `;
-      }else{
-        result += this._extendBlock(elem, indent + 1);
-      }
-    });
-    result += ") ";
-    return result;
+    let name = this.block.match(/^\(\s*module\s(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+)/);
+    this.name = (name !== null) ? name[1] : null;
   }
 
   expand(){
     let result = null;
-    if(this.block[0].match(/module( \$\w+)? binary/) !== null){
+    let moduleMatch = this.block.match(/^\(\s*module(s\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+)?(\s+binary|\squote)?/);
+    if(moduleMatch[2] && moduleMatch[2].trim() == "binary"){
       this.isBinary = true;
+      this.name = this.block[0].match(/module( \$\w+)? binary/)[1];
       let binaryModule = this.block[0].substring(13).trim()
         .match(/"(\\"|\s|[^"])*"/g)
         .reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "")
@@ -42,21 +33,28 @@ class Module{
         result = Buffer.alloc(0);
       }
     }else{
-      result = "(module ";
-      if(this.block[0].match(/module$/) !== null){
-        for(let i = 1; i < this.block.length; ++i){
-          result += this._extendBlock(this.block[i], 1);
-        }
-      }else if(this.block[0].match(/module( \$\w+)? quote/) !== null){
-        let quotedModule = this.block[0].substring(12).trim().match(/"(\\"|\s|[^"])*"/g);
+      if(typeof(moduleMatch[2]) == "undefined"){
+        result = this.block;
+      }else if(moduleMatch[2] && moduleMatch[2].trim() == "quote"){
+        let quotedModule = this.block.replace(/^\(\s*module\s+/, "").trim().match(/"(\\"|\s|[^"])*"/g);
+        result = "(module ";
         result += quotedModule.reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "");
+        result += "\n)";
       }
-      result += "\n)";
     }
     return result;
   }
 }
 module.exports.Module = Module;
+
+class Register{
+  constructor(block){
+    let splitted = block[0].split(/\s/);
+    this.name = splitted[1].substring(1, splitted[1].length - 1);
+    this.module = (splitted.length > 2) ? splitted[2] : null;
+  }
+}
+module.exports.Register = Register;
 
 class Assertion{
   expand(){
@@ -67,9 +65,19 @@ class Assertion{
 class AssertReturn extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.action = getAction(block.shift(), block);
-    this.results = block;
+    block = block.replace(/^\(\s*assert_return\s+/, "").replace(/\)\s*$/, "");
+    let resultStr = block.substring(getFirstBalancedBlock(block).length).trim();
+    this.results = [];
+    while(resultStr){
+      let result = getFirstBalancedBlock(resultStr.trim());
+      if(result){
+        this.results.push(result.trim());
+        resultStr = resultStr.substring(result.length + 1);
+      }else{
+        break;
+      }
+    }
+    this.action = getAction(block, this.results);
   }
 
   expand(moduleName){
@@ -77,18 +85,19 @@ class AssertReturn extends Assertion{
       let invokeExpand = this.action.expand(moduleName);
       return {
         expect : "return",
-        content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.reduce((str, result) => str + ` (${result})`, "")})\n` +
-        "(module \n" +
-        "  " + invokeExpand.prologue + "\n" +
-        "  (memory 1)\n  (start $main)\n" +
-        "  (func $main (export \"main\")\n" +
-        "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    " +
-        this.results.reduce((str, result) => str + result[0] +
-          `\n    ${result[0].substring(0, 3)}.ne\n` +
-          "    if\n" +
-          "      unreachable\n" +
-          "    end\n", "") +
-        "  )\n)\n",
+        content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.reduce((str, result) => str + " " + result, "")})\n` +
+          this.results.reduce((str, result) => str + result.substring(1, result.length - 1) + "\n" +
+            `    ${result.substring(1, 4)}.ne\n` +
+            "    if\n" +
+            "      unreachable\n" +
+            "    end\n",
+          "(module \n" +
+          "  " + invokeExpand.prologue + "\n" +
+          "  (memory 1)\n  (start $main)\n" +
+          "  (func $main (export \"main\")\n" +
+          "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    ") +
+          "  )\n" +
+          ")\n",
       };
     }else if(this.action instanceof Get){
       return this.action.expand(moduleName);
@@ -101,10 +110,14 @@ module.exports.AssertReturn = AssertReturn;
 class AssertTrap extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.action = getAction(block.shift());
-    this.failure = block.shift();
-    this.failure = this.failure.substring(1, this.failure.length - 1);
+    block = block.replace(/^\(\s*assert_trap\s+/, "").replace(/\)\s*$/, "");
+    this.action = getAction(block, []);
+    this.failure = block.match(/"((\\"|[^"])*)"\s*$/);
+    if(this.failure != null){
+      this.failure = this.failure[1];
+    }else{
+      throw SyntaxError("Expect failure string in assert_trap");
+    }
   }
 
   expand(moduleName){
@@ -117,8 +130,9 @@ class AssertTrap extends Assertion{
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
-        "    " + invokeExpand.content.replace(/\n/g, "\n    ") +
-        "\n  )\n)\n",
+        `    ${invokeExpand.content.replace(/\n/g, "\n    ")}\n` +
+        "  )\n" +
+        ")\n",
       };
     }else if(this.action instanceof Get){
       return this.action.expand(moduleName);
@@ -131,10 +145,13 @@ module.exports.AssertTrap = AssertTrap;
 class AssertMalformed extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.module = new Module(block.shift());
-    this.failure = block.shift();
-    this.failure = this.failure.substring(1, this.failure.length - 1);
+    this.module = new Module(getFirstBalancedBlock(block.replace(/^\(\s*assert_malformed\s+/, "")));
+    this.failure = block.match(/"((\\"|[^"])*)"\s*\)\s*$/);
+    if(this.failure != null){
+      this.failure = this.failure[1];
+    }else{
+      throw SyntaxError("Expect failure string in assert_malformed");
+    }
   }
 
   expand(){
@@ -220,12 +237,11 @@ module.exports.AssertUnlinkable = AssertUnlinkable;
 
 class Invoke{
   constructor(block, results){
-    block[0] = block[0].trim();
-    let match = block[0].match(/^invoke\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+\s+)?"((\\"|[^"])*)"$/);
+    let match = block.match(/^\(\s*invoke\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+\s+)?"((\\"|[^"])*)"(.*)\)$/);
     if(match !== null){
-      this.name = match[1];
+      this.name = match[1] ? match[1].trim() : undefined;
       this.func = match[2];
-      this.params = block.slice(1);
+      this.params = match[4] ? match[4].trim().match(/\([^)]+\)/g) : [];
       this.results = results;
     }else{
       throw new TypeError("Unable to parse invoke");
@@ -236,15 +252,14 @@ class Invoke{
     return {
       type    : "invoke",
       prologue: `(import "${moduleName}" "${this.func}" (func $test_func ${
-        (this.params.length > 0) ? "(param" + this.params.reduce((str, param) => str + " " + param[0].substring(0, 3), "") + ")" : ""
+        (this.params.length > 0) ? this.params.reduce((str, param) => str + " " + param.substring(1, 4), "(param") + ")" : ""
       } ${
-        (this.results && this.results.length > 0) ? "(result " + this.results.map(result => result[0].substring(0, 3)) + ")" : ""
+        (this.results.length > 0) ? this.results.reduce((str, result) => str + " " + result.substring(1, 4), "(result") + ")" : ""
       }))`,
-      content: `;; (invoke "${this.func}" ${
-        this.params.reduce((str, param) => str + " ("+ param[0] + ") ", "")
-      })\n` +
-        this.params.reduce((str, param) => str + `${param[0]}\n`, "") + // Set parameter
-        "call $test_func\n",
+      content: this.params.reduce(
+        (str, param) => str + `${param}\n`,
+        `;; (invoke "${this.func}" ${this.params.reduce((str, param) => str + " " + param, "")})\n`,
+      ) + "call $test_func\n",
     };
   }
 }
@@ -257,11 +272,46 @@ class Get{
 }
 
 function getAction(block, ...args){
-  if(block[0].trim().match(/^invoke/)){
-    return new Invoke(block, ...args);
-  }else if(block[0].trim().match(/^get/)){
+  let action = getFirstBalancedBlock(block);
+  if(action.match(/^\(\s*invoke/)){
+    return new Invoke(action, ...args);
+  }else if(action.match(/^\(\s*get/)){
     return new Get(block, ...args);
   }else{
     throw new TypeError("Unknown action");
+  }
+}
+
+function getFirstBalancedBlock(block){
+  let start = -1;
+  let end = -1;
+  let parenCount = 0;
+  let isString = false;
+  for(let i = 0; i < block.length; ++i){
+    if(block[i] == "\"" && i != 0 && block[i - 1] != "\\"){
+      isString = !isString;
+    }else if(isString){
+      continue;
+    }else if(block[i] == "("){
+      if(parenCount == 0){
+        start = i;
+      }
+      parenCount += 1;
+    }else if(block[i] == ")"){
+      if(parenCount == 0){
+        return null;
+      }else if(parenCount == 1){
+        end = i + 1;
+        break;
+      }else{
+        parenCount -= 1;
+      }
+    }
+  }
+
+  if(start < 0 || end < 0){
+    return null;
+  }else{
+    return block.substring(start, end);
   }
 }

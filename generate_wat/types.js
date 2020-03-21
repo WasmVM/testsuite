@@ -1,8 +1,15 @@
+/**
+ * Copyright 2020 Luis Hsu. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+
 class Module{
   constructor(block){
     this.assertions = [];
     this.block = block;
     this.isBinary = false;
+    this.invokes = [];
     let name = this.block.match(/^\(\s*module\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)/);
     this.name = (name !== null) ? name[1] : null;
   }

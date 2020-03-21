@@ -1,9 +1,7 @@
 const {
-  UnmatchedParentheses,
-} = require("./errors");
-const {
   Module,
   Register,
+  Invoke,
   AssertReturn,
   AssertTrap,
   AssertMalformed,
@@ -61,7 +59,7 @@ function parse_block(dataStr){
           break;
         case ")":
           if(stack.length < 1){
-            throw new UnmatchedParentheses();
+            throw SyntaxError("Unmatched parentheses");
           }else{
             stack.pop();
             if(stack.length == 0){
@@ -96,7 +94,12 @@ function parse_block(dataStr){
             }
             break;
           case "invoke":
-            throw new ReferenceError("invoke not implemented"); // TODO:
+            let invoke = new Invoke(block, []);
+            if(invoke.name){
+              result.filter(res => res instanceof Module).find(mod => mod.name == invoke.name).invokes.push(invoke);
+            }else{
+              result[result.length - 1].invokes.push(invoke);
+            }
             break;
           case "get":
             throw new ReferenceError("get not implemented"); // TODO:

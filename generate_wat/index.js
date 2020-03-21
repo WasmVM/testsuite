@@ -27,7 +27,7 @@ fs.readFile(Path.resolve(process.argv[2]))
   .then(blocks => Promise.all(blocks.map((block, index) => {
     let module = block.expand();
     if(block instanceof Module){
-      let moduleName = (block.register) ? block.register.name : `test_module_${index}`;
+      let moduleName = (block.register) ? block.register : `test_module_${index}`;
       return fs.writeFile(
         Path.resolve(generatedDir, `${moduleName}.${(module instanceof Buffer) ? "wasm" : "wat"}`),
         module,

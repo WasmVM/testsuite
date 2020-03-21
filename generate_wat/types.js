@@ -3,17 +3,17 @@ class Module{
     this.assertions = [];
     this.block = block;
     this.isBinary = false;
-    let name = this.block.match(/^\(\s*module\s(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+)/);
+    let name = this.block.match(/^\(\s*module\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)/);
     this.name = (name !== null) ? name[1] : null;
   }
 
   expand(){
     let result = null;
-    let moduleMatch = this.block.match(/^\(\s*module(s\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+)?(\s+binary|\squote)?/);
+    let moduleMatch = this.block.match(/^\(\s*module(\s+\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)?(\s+binary|\squote)?/);
     if(moduleMatch[2] && moduleMatch[2].trim() == "binary"){
       this.isBinary = true;
-      this.name = this.block[0].match(/module( \$\w+)? binary/)[1];
-      let binaryModule = this.block[0].substring(13).trim()
+      this.name = moduleMatch[1] ? moduleMatch[1].trim() : null;
+      let binaryModule = this.block.substring(moduleMatch[0].length).trim()
         .match(/"(\\"|\s|[^"])*"/g)
         .reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "")
         .match(/(\\\\|\\\d\d|[^\\])/g);
@@ -49,9 +49,9 @@ module.exports.Module = Module;
 
 class Register{
   constructor(block){
-    let splitted = block[0].split(/\s/);
-    this.name = splitted[1].substring(1, splitted[1].length - 1);
-    this.module = (splitted.length > 2) ? splitted[2] : null;
+    let registerMatch = block.trim().match(/^\(\s*register\s+"((\\"|[^"])*)"\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)\s*\)$/);
+    this.name = registerMatch[1];
+    this.module = registerMatch[3];
   }
 }
 module.exports.Register = Register;
@@ -168,10 +168,13 @@ module.exports.AssertMalformed = AssertMalformed;
 class AssertInvalid extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.module = new Module(block.shift());
-    this.failure = block.shift();
-    this.failure = this.failure.substring(1, this.failure.length - 1);
+    this.module = new Module(getFirstBalancedBlock(block.replace(/^\(\s*assert_invalid\s+/, "")));
+    this.failure = block.match(/"((\\"|[^"])*)"\s*\)\s*$/);
+    if(this.failure != null){
+      this.failure = this.failure[1];
+    }else{
+      throw SyntaxError("Expect failure string in assert_invalid");
+    }
   }
 
   expand(){
@@ -188,10 +191,14 @@ module.exports.AssertInvalid = AssertInvalid;
 class AssertExhaustion extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.action = getAction(block.shift());
-    this.failure = block.shift();
-    this.failure = this.failure.substring(1, this.failure.length - 1);
+    block = block.replace(/^\(\s*assert_exhaustion\s+/, "").replace(/\)\s*$/, "");
+    this.action = getAction(block, []);
+    this.failure = block.match(/"((\\"|[^"])*)"\s*$/);
+    if(this.failure != null){
+      this.failure = this.failure[1];
+    }else{
+      throw SyntaxError("Expect failure string in assert_exhaustion");
+    }
   }
 
   expand(moduleName){
@@ -204,8 +211,9 @@ class AssertExhaustion extends Assertion{
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
-        "    " + invokeExpand.content.replace(/\n/g, "\n    ") +
-        "\n  )\n)\n",
+        "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n" +
+        "  )\n" +
+        ")\n",
       };
     }else if(this.action instanceof Get){
       return this.action.expand(moduleName);
@@ -218,10 +226,13 @@ module.exports.AssertExhaustion = AssertExhaustion;
 class AssertUnlinkable extends Assertion{
   constructor(block){
     super();
-    block.shift();
-    this.module = new Module(block.shift());
-    this.failure = block.shift();
-    this.failure = this.failure.substring(1, this.failure.length - 1);
+    this.module = new Module(getFirstBalancedBlock(block.replace(/^\(\s*assert_unlinkable\s+/, "")));
+    this.failure = block.match(/"((\\"|[^"])*)"\s*\)\s*$/);
+    if(this.failure != null){
+      this.failure = this.failure[1];
+    }else{
+      throw SyntaxError("Expect failure string in assert_unlinkable");
+    }
   }
 
   expand(){
@@ -257,7 +268,7 @@ class Invoke{
         (this.results.length > 0) ? this.results.reduce((str, result) => str + " " + result.substring(1, 4), "(result") + ")" : ""
       }))`,
       content: this.params.reduce(
-        (str, param) => str + `${param}\n`,
+        (str, param) => str + `${param.substring(1, param.length - 1)}\n`,
         `;; (invoke "${this.func}" ${this.params.reduce((str, param) => str + " " + param, "")})\n`,
       ) + "call $test_func\n",
     };

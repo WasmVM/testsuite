@@ -79,7 +79,7 @@ function parse_block(dataStr){
       let result = [];
       blocks.forEach(block => {
         if(block.length > 0){
-          let blockType = block.match(/^\(\s*(\w+)\s/);
+          let blockType = block.match(/^\(\s*(\w+)\s*/);
           if(!blockType){
             throw new SyntaxError("Unknown test connand");
           }

@@ -93,14 +93,30 @@ class AssertReturn extends Assertion{
             "    end\n",
           "(module \n" +
           "  " + invokeExpand.prologue + "\n" +
-          "  (memory 1)\n  (start $main)\n" +
+          "  (start $main)\n" +
           "  (func $main (export \"main\")\n" +
           "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    ") +
           "  )\n" +
           ")\n",
       };
     }else if(this.action instanceof Get){
-      return this.action.expand(moduleName);
+      let getExpand = this.action.expand(moduleName);
+      return {
+        expect : "return",
+        content: `;; (assert_return (get "${this.action.func}"))\n` +
+          "(module \n" +
+          "  " + getExpand.prologue + "\n" +
+          "  (start $main)\n" +
+          "  (func $main (export \"main\")\n" +
+          "    " + getExpand.content.replace(/\n/g, "\n    ") +
+          this.action.result.substring(1, this.action.result.length - 1) + "\n" +
+          `    ${this.action.result.substring(1, 4)}.ne\n` +
+          "    if\n" +
+          "      unreachable\n" +
+          "    end\n" +
+          "  )\n" +
+          ")\n",
+      };
     }
     throw new TypeError("Unsupported action in AssertReturn");
   }
@@ -255,7 +271,7 @@ class Invoke{
       this.params = match[4] ? match[4].trim().match(/\([^)]+\)/g) : [];
       this.results = results;
     }else{
-      throw new TypeError("Unable to parse invoke");
+      throw new TypeError("Unable to parse invoke action");
     }
   }
 
@@ -277,8 +293,24 @@ class Invoke{
 module.exports.Invoke = Invoke;
 
 class Get{
-  constructor(block){
-    throw ReferenceError("Get block not impemented"); // TODO:
+  constructor(block, result){
+    let match = block.match(/^\(\s*get\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+\s+)?"((\\"|[^"])*)"\s*\)$/);
+    if(match !== null){
+      this.name = match[1] ? match[1].trim() : undefined;
+      this.global = match[2];
+      this.result = result[0];
+    }else{
+      throw new TypeError("Unable to parse get action");
+    }
+  }
+
+  expand(moduleName){
+    return {
+      type    : "get",
+      prologue: `(import "${moduleName}" "${this.global}" (global $test_global ${this.result.substring(1, 4)}))`,
+      content : `;; (get "${this.global}")\n` +
+        "global.get $test_global\n",
+    };
   }
 }
 
@@ -287,7 +319,7 @@ function getAction(block, ...args){
   if(action.match(/^\(\s*invoke/)){
     return new Invoke(action, ...args);
   }else if(action.match(/^\(\s*get/)){
-    return new Get(block, ...args);
+    return new Get(action, ...args);
   }else{
     throw new TypeError("Unknown action");
   }

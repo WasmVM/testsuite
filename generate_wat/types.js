@@ -56,7 +56,7 @@ module.exports.Module = Module;
 
 class Register{
   constructor(block){
-    let registerMatch = block.trim().match(/^\(\s*register\s+"((\\"|[^"])*)"\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)\s*\)$/);
+    let registerMatch = block.trim().match(/^\(\s*register\s+"((\\"|[^"])*)"\s*(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#\$%&:'`]+)?\s*\)$/);
     this.name = registerMatch[1];
     this.module = registerMatch[3];
   }

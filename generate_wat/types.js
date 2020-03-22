@@ -64,6 +64,14 @@ class Register{
 module.exports.Register = Register;
 
 class Assertion{
+  constructor(){
+    this.invokes = [];
+  }
+
+  addInvokes(invokes){
+    this.invokes = this.invokes.concat(invokes);
+  }
+
   expand(){
     throw new TypeError("Expand should be implemented in assertion");
   }
@@ -88,8 +96,9 @@ class AssertReturn extends Assertion{
   }
 
   expand(moduleName){
+    let distinctInvoke = getDistinctInvoke(this.invokes);
     if(this.action instanceof Invoke){
-      let invokeExpand = this.action.expand(moduleName);
+      let invokeExpand = this.action.expand(moduleName, "test_func");
       return {
         expect : "return",
         content: `;; (assert_return (invoke "${this.action.func}") (result ${this.results.reduce((str, result) => str + " " + result, "")})\n` +
@@ -99,9 +108,11 @@ class AssertReturn extends Assertion{
             "      unreachable\n" +
             "    end\n",
           "(module \n" +
+          ((distinctInvoke.length > 0) ? distinctInvoke.reduce((str, val, index) => str + `  ${val.expand(moduleName, `invoke_${index}`).prologue}\n`, "") : "") +
           "  " + invokeExpand.prologue + "\n" +
           "  (start $main)\n" +
           "  (func $main (export \"main\")\n" +
+          "    " + this.invokes.reduce((str, val) => str + val.expand(moduleName, `invoke_${distinctInvoke.findIndex(dis => dis.func == val.func)}`).content.replace(/\n/g, "\n    "), "") + "\n" +
           "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n    ") +
           "  )\n" +
           ")\n",
@@ -112,6 +123,7 @@ class AssertReturn extends Assertion{
         expect : "return",
         content: `;; (assert_return (get "${this.action.func}"))\n` +
           "(module \n" +
+          ((distinctInvoke.length > 0) ? distinctInvoke.reduce((str, val, index) => str + `  ${val.expand(moduleName, `invoke_${index}`).prologue}\n`, "") : "") +
           "  " + getExpand.prologue + "\n" +
           "  (start $main)\n" +
           "  (func $main (export \"main\")\n" +
@@ -144,21 +156,22 @@ class AssertTrap extends Assertion{
   }
 
   expand(moduleName){
+    let distinctInvoke = getDistinctInvoke(this.invokes);
     if(this.action instanceof Invoke){
-      let invokeExpand = this.action.expand(moduleName);
+      let invokeExpand = this.action.expand(moduleName, "test_func");
       return {
         expect : "trap",
         content: `;; (assert_trap (invoke "${this.action.func}") "${this.failure}"\n` +
         "(module \n" +
+        ((distinctInvoke.length > 0) ? distinctInvoke.reduce((str, val, index) => str + `  ${val.expand(moduleName, `invoke_${index}`).prologue}\n`, "") : "") +
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
+        "    " + this.invokes.reduce((str, val) => str + val.expand(moduleName, `invoke_${distinctInvoke.findIndex(dis => dis.func == val.func)}`).content.replace(/\n/g, "\n    "), "") + "\n" +
         `    ${invokeExpand.content.replace(/\n/g, "\n    ")}\n` +
         "  )\n" +
         ")\n",
       };
-    }else if(this.action instanceof Get){
-      return this.action.expand(moduleName);
     }
     throw new TypeError("Unsupported action in AssertTrap");
   }
@@ -225,21 +238,22 @@ class AssertExhaustion extends Assertion{
   }
 
   expand(moduleName){
+    let distinctInvoke = getDistinctInvoke(this.invokes);
     if(this.action instanceof Invoke){
-      let invokeExpand = this.action.expand(moduleName);
+      let invokeExpand = this.action.expand(moduleName, "test_func");
       return {
         expect : "exhaustion",
         content: `;; (assert_exhaustion (invoke "${this.action.func}") "${this.failure}"\n` +
         "(module \n" +
+        ((distinctInvoke.length > 0) ? distinctInvoke.reduce((str, val, index) => str + `  ${val.expand(moduleName, `invoke_${index}`).prologue}\n`, "") : "") +
         "  " + invokeExpand.prologue + "\n" +
         "  (memory 1)\n  (start $main)\n" +
         "  (func $main (export \"main\")\n" +
+        "    " + this.invokes.reduce((str, val) => str + val.expand(moduleName, `invoke_${distinctInvoke.findIndex(dis => dis.func == val.func)}`).content.replace(/\n/g, "\n    "), "") + "\n" +
         "    " + invokeExpand.content.replace(/\n/g, "\n    ") + "\n" +
         "  )\n" +
         ")\n",
       };
-    }else if(this.action instanceof Get){
-      return this.action.expand(moduleName);
     }
     throw new TypeError("Unsupported action in AssertReturn");
   }
@@ -271,7 +285,7 @@ module.exports.AssertUnlinkable = AssertUnlinkable;
 
 class Invoke{
   constructor(block, results){
-    let match = block.match(/^\(\s*invoke\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+\s+)?"((\\"|[^"])*)"(.*)\)$/);
+    let match = block.match(/^\(\s*invoke\s+(\$[\w_\.\+\-*\/\\^~=<>!\?\|@#$%&:'`]+\s+)?"((\\"|[^"])*)"((.|\s)*)\)$/);
     if(match !== null){
       this.name = match[1] ? match[1].trim() : undefined;
       this.func = match[2];
@@ -282,18 +296,18 @@ class Invoke{
     }
   }
 
-  expand(moduleName){
+  expand(moduleName, funcName){
     return {
       type    : "invoke",
-      prologue: `(import "${moduleName}" "${this.func}" (func $test_func ${
+      prologue: `(import "${moduleName}" "${this.func}" (func $${funcName} ${
         (this.params.length > 0) ? this.params.reduce((str, param) => str + " " + param.substring(1, 4), "(param") + ")" : ""
       } ${
         (this.results.length > 0) ? this.results.reduce((str, result) => str + " " + result.substring(1, 4), "(result") + ")" : ""
       }))`,
       content: this.params.reduce(
         (str, param) => str + `${param.substring(1, param.length - 1)}\n`,
-        `;; (invoke "${this.func}" ${this.params.reduce((str, param) => str + " " + param, "")})\n`,
-      ) + "call $test_func\n",
+        `;; (invoke "${this.func}" ${this.params.reduce((str, param) => str + param, "")})\n`,
+      ) + `call $${funcName}\n`,
     };
   }
 }
@@ -364,4 +378,8 @@ function getFirstBalancedBlock(block){
   }else{
     return block.substring(start, end);
   }
+}
+
+function getDistinctInvoke(invokes){
+  return invokes.filter((invoke, index, self) => self.findIndex(val => val.func == invoke.func) === index);
 }

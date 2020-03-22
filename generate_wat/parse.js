@@ -87,52 +87,49 @@ function parse_block(dataStr){
           if(!blockType){
             throw new SyntaxError("Unknown test connand");
           }
+          let instance = null;
+          let module = null;
           switch(blockType[1]){
           case "module":
             result.push(new Module(block));
             break;
           case "register":
-            let register = new Register(block);
-            if(register.module != null){
-              result.filter(res => res instanceof Module).find(mod => mod.name == register.module).register = register.name;
-            }else{
-              result[result.length - 1].register = register.name;
-            }
+            instance = new Register(block);
+            module = (instance.module != null) ?
+              result.filter(res => res instanceof Module).find(mod => mod.name == instance.module) :
+              result[result.length - 1];
+            module.register = instance.name;
             break;
           case "invoke":
-            let invoke = new Invoke(block, []);
-            if(invoke.name){
-              result.filter(res => res instanceof Module).find(mod => mod.name == invoke.name).invokes.push(invoke);
-            }else{
-              result[result.length - 1].invokes.push(invoke);
-            }
-            break;
-          case "get":
-            throw new ReferenceError("get not implemented"); // TODO:
+            instance = new Invoke(block, []);
+            module = (instance.name) ?
+              result.filter(res => res instanceof Module).find(mod => mod.name == instance.name) :
+              result[result.length - 1];
+            module.invokes.push(instance);
             break;
           case "assert_return":
-            let assertReturn = new AssertReturn(block);
-            if(assertReturn.action.name){
-              result.filter(res => res instanceof Module).find(mod => mod.name == assertReturn.action.name).assertions.push(assertReturn);
-            }else{
-              result[result.length - 1].assertions.push(assertReturn);
-            }
+            instance = new AssertReturn(block);
+            module = (instance.action.name) ?
+              result.filter(res => res instanceof Module).find(mod => mod.name == instance.action.name) :
+              result[result.length - 1];
+            instance.addInvokes(module.invokes);
+            module.assertions.push(instance);
             break;
           case "assert_trap":
-            let assertTrap = (new AssertTrap(block));
-            if(assertTrap.action.name){
-              result.filter(res => res instanceof Module).find(mod => mod.name == assertTrap.action.name).assertions.push(assertTrap);
-            }else{
-              result[result.length - 1].assertions.push(assertTrap);
-            }
+            instance = new AssertTrap(block);
+            module = (instance.action.name) ?
+              result.filter(res => res instanceof Module).find(mod => mod.name == instance.action.name) :
+              result[result.length - 1];
+            instance.addInvokes(module.invokes);
+            module.assertions.push(instance);
             break;
           case "assert_exhaustion":
-            let assertExhaustion = new AssertExhaustion(block);
-            if(assertExhaustion.action.name){
-              result.filter(res => res instanceof Module).find(mod => mod.name == assertExhaustion.action.name).assertions.push(assertExhaustion);
-            }else{
-              result[result.length - 1].assertions.push(assertExhaustion);
-            }
+            instance = new AssertExhaustion(block);
+            module = (instance.action.name) ?
+              result.filter(res => res instanceof Module).find(mod => mod.name == instance.action.name) :
+              result[result.length - 1];
+            instance.addInvokes(module.invokes);
+            module.assertions.push(instance);
             break;
           case "assert_malformed":
             result.push(new AssertMalformed(block));

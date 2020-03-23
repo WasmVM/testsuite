@@ -45,7 +45,16 @@ class Module{
       }else if(moduleMatch[2] && moduleMatch[2].trim() == "quote"){
         let quotedModule = this.block.replace(/^\(\s*module\s+/, "").trim().match(/"(\\"|\s|[^"])*"/g);
         result = "(module ";
-        result += quotedModule.reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "");
+        result += quotedModule.reduce((res, stmt) => {
+          let quoted = stmt.substring(1, stmt.length - 1);
+          for(let i = 0; i < quoted.length; ++i){
+            if(quoted.charAt(i) == "\\"){
+              i += 1;
+            }
+            res += quoted.charAt(i);
+          }
+          return res;
+        }, "");
         result += "\n)";
       }
     }

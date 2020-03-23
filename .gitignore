@@ -1,7 +1,5 @@
 .DS_Store
 node_modules/
 .vscode
-node-test/
 build*/
-install*/
 package-lock.json

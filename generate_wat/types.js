@@ -146,7 +146,11 @@ class AssertTrap extends Assertion{
   constructor(block){
     super();
     block = block.replace(/^\(\s*assert_trap\s+/, "").replace(/\)\s*$/, "");
-    this.action = getAction(block, []);
+    if(block.match(/^\(\s*module/)){
+      this.action = new Module(getFirstBalancedBlock(block));
+    }else{
+      this.action = getAction(block, []);
+    }
     this.failure = block.match(/"((\\"|[^"])*)"\s*$/);
     if(this.failure != null){
       this.failure = this.failure[1];
@@ -171,6 +175,13 @@ class AssertTrap extends Assertion{
         `    ${invokeExpand.content.replace(/\n/g, "\n    ")}\n` +
         "  )\n" +
         ")\n",
+      };
+    }else if (this.action instanceof Module){
+      let expanded = this.action.expand();
+      let header = `;; (assert_trap "${this.failure}")\n`;
+      return {
+        expect : "trap",
+        content: (expanded instanceof Buffer) ? Buffer.concat([Buffer.from(header), expanded]) : header + expanded,
       };
     }
     throw new TypeError("Unsupported action in AssertTrap");

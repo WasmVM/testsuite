@@ -81,6 +81,7 @@ function parse_block(dataStr){
   })
     .then(blocks => {
       let result = [];
+      let inlineModule = null;
       blocks.forEach(block => {
         if(block.length > 0){
           let blockType = block.match(/^\(\s*(\w+)\s*/);
@@ -117,11 +118,15 @@ function parse_block(dataStr){
             break;
           case "assert_trap":
             instance = new AssertTrap(block);
-            module = (instance.action.name) ?
-              result.filter(res => res instanceof Module).find(mod => mod.name == instance.action.name) :
-              result[result.length - 1];
-            instance.addInvokes(module.invokes);
-            module.assertions.push(instance);
+            if(instance.action instanceof Module){
+              result.push(instance);
+            }else{
+              module = (instance.action.name) ?
+                result.filter(res => res instanceof Module).find(mod => mod.name == instance.action.name) :
+                result[result.length - 1];
+              instance.addInvokes(module.invokes);
+              module.assertions.push(instance);
+            }
             break;
           case "assert_exhaustion":
             instance = new AssertExhaustion(block);
@@ -140,11 +145,31 @@ function parse_block(dataStr){
           case "assert_unlinkable":
             result.push(new AssertUnlinkable(block));
             break;
+          case "type":
+          case "func":
+          case "import":
+          case "export":
+          case "table":
+          case "memory":
+          case "global":
+          case "elem":
+          case "data":
+          case "start":
+            if(inlineModule == null){
+              inlineModule = new Module(`(module ${block} `);
+              result.push(inlineModule);
+            }else{
+              inlineModule.block += block + " ";
+            }
+            break;
           default:
             throw new SyntaxError("Unknown test connand");
           }
         }
       });
+      if(inlineModule != null){
+        inlineModule.block += ")";
+      }
       return result;
     });
 }

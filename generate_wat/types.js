@@ -23,7 +23,7 @@ class Module{
       let binaryModule = this.block.substring(moduleMatch[0].length).trim()
         .match(/"(\\"|\s|[^"])*"/g)
         .reduce((res, stmt) => res + stmt.substring(1, stmt.length - 1), "")
-        .match(/(\\\\|\\\d\d|[^\\])/g);
+        .match(/(\\\\|\\[0-9a-fA-F][0-9a-fA-F]|[^\\])/g);
       if(binaryModule != null){
         let buffer = Buffer.alloc(binaryModule.length);
         binaryModule.forEach((byte, index) => {

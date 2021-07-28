@@ -1,5 +1,5 @@
 #!/bin/bash
-PREFIX=${PREFIX:-""}
+PREFIX=${PREFIX:-"."}
 for CASE in `find ${PREFIX}/cases/ -name "*.wast"`
 do
   node $PREFIX/generate_wat/index.js $CASE
